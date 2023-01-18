@@ -1,5 +1,21 @@
 #!/usr/bin/env python3
 
+################################################################################
+# SPDX-FileCopyrightText: Copyright (c) 2020-2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
 
 import argparse
 import sys
@@ -9,8 +25,8 @@ import gi
 gi.require_version('Gst', '1.0')
 gi.require_version('GstRtspServer', '1.0')
 from gi.repository import GLib, Gst, GstRtspServer
-from deepstreamapps.common.is_aarch_64 import is_aarch64
-from deepstreamapps.common.bus_call import bus_call
+from common.is_aarch_64 import is_aarch64
+from common.bus_call import bus_call
 
 import pyds
 
@@ -106,11 +122,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
 
 def main(args):
-    # Check input arguments
-    # if len(args) != 2:
-    #     sys.stderr.write("usage: %s <v4l2-device-path>\n" % args[0])
-    #     sys.exit(1)
-
     # Standard GStreamer initialization
     Gst.init(None)
 
@@ -123,40 +134,22 @@ def main(args):
 
     # Source element for reading from the file
     print("Creating Source \n ")
-    source = Gst.ElementFactory.make("v4l2src", "usb-cam-source")
+    source = Gst.ElementFactory.make("filesrc", "file-source")
     if not source:
         sys.stderr.write(" Unable to create Source \n")
 
-    caps_v4l2src = Gst.ElementFactory.make("capsfilter", "v4l2src_caps")
-    if not caps_v4l2src:
-        sys.stderr.write(" Unable to create v4l2src capsfilter \n")
+    # Since the data format in the input file is elementary h264 stream,
+    # we need a h264parser
+    print("Creating H264Parser \n")
+    h264parser = Gst.ElementFactory.make("h264parse", "h264-parser")
+    if not h264parser:
+        sys.stderr.write(" Unable to create h264 parser \n")
 
-    print("Creating Video Converter \n")
-
-    # Adding videoconvert -> nvvideoconvert as not all
-    # raw formats are supported by nvvideoconvert;
-    # Say YUYV is unsupported - which is the common
-    # raw format for many logi usb cams
-    # In case we have a camera with raw format supported in
-    # nvvideoconvert, GStreamer plugins' capability negotiation
-    # shall be intelligent enough to reduce compute by
-    # videoconvert doing passthrough (TODO we need to confirm this)
-
-    # videoconvert to make sure a superset of raw formats are supported
-    vidconvsrc = Gst.ElementFactory.make("videoconvert", "convertor_src1")
-    if not vidconvsrc:
-        sys.stderr.write(" Unable to create videoconvert \n")
-
-    # nvvideoconvert to convert incoming raw buffers to NVMM Mem (NvBufSurface API)
-    nvvidconvsrc = Gst.ElementFactory.make("nvvideoconvert", "convertor_src2")
-    if not nvvidconvsrc:
-        sys.stderr.write(" Unable to create Nvvideoconvert \n")
-
-    caps_vidconvsrc = Gst.ElementFactory.make("capsfilter", "nvmm_caps")
-    if not caps_vidconvsrc:
-        sys.stderr.write(" Unable to create capsfilter \n")
-
-##############################################################################################
+    # Use nvdec_h264 for hardware accelerated decode on GPU
+    print("Creating Decoder \n")
+    decoder = Gst.ElementFactory.make("nvv4l2decoder", "nvv4l2-decoder")
+    if not decoder:
+        sys.stderr.write(" Unable to create Nvv4l2 Decoder \n")
 
     # Create nvstreammux instance to form batches from one or more sources.
     streammux = Gst.ElementFactory.make("nvstreammux", "Stream-muxer")
@@ -224,10 +217,8 @@ def main(args):
     sink.set_property('async', False)
     sink.set_property('sync', 1)
 
-    print("Playing camera %s " % device_cam)
-    caps_v4l2src.set_property('caps', Gst.Caps.from_string("video/x-raw, framerate=30/1"))
-    caps_vidconvsrc.set_property('caps', Gst.Caps.from_string("video/x-raw(memory:NVMM)"))
-    source.set_property('device', device_cam)
+    print("Playing file %s " %stream_path)
+    source.set_property('location', stream_path)
     streammux.set_property('width', 1920)
     streammux.set_property('height', 1080)
     streammux.set_property('batch-size', 1)
@@ -237,12 +228,8 @@ def main(args):
 
     print("Adding elements to Pipeline \n")
     pipeline.add(source)
-
-    pipeline.add(caps_v4l2src)
-    pipeline.add(vidconvsrc)
-    pipeline.add(nvvidconvsrc)
-    pipeline.add(caps_vidconvsrc)
-
+    pipeline.add(h264parser)
+    pipeline.add(decoder)
     pipeline.add(streammux)
     pipeline.add(pgie)
     pipeline.add(nvvidconv)
@@ -255,22 +242,19 @@ def main(args):
 
     # Link the elements together:
     # file-source -> h264-parser -> nvh264-decoder ->
-    # nvinfer -> nvvidconv -> nvosd -> nvvidconv_postosd ->
+    # nvinfer -> nvvidconv -> nvosd -> nvvidconv_postosd -> 
     # caps -> encoder -> rtppay -> udpsink
 
     print("Linking elements in the Pipeline \n")
-    source.link(caps_v4l2src)
-    caps_v4l2src.link(vidconvsrc)
-    vidconvsrc.link(nvvidconvsrc)
-    nvvidconvsrc.link(caps_vidconvsrc)
-
+    source.link(h264parser)
+    h264parser.link(decoder)
     sinkpad = streammux.get_request_pad("sink_0")
     if not sinkpad:
         sys.stderr.write(" Unable to get the sink pad of streammux \n")
 
-    srcpad = caps_vidconvsrc.get_static_pad("src")
+    srcpad = decoder.get_static_pad("src")
     if not srcpad:
-        sys.stderr.write(" Unable to get source pad of caps_vidconvsrc \n")
+        sys.stderr.write(" Unable to get source pad of decoder \n")
 
     srcpad.link(sinkpad)
     streammux.link(pgie)
@@ -347,7 +331,6 @@ def parse_args():
 codec = 'H264'
 bitrate = 4000000
 stream_path = '/opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_720p.h264'
-device_cam = '/dev/video0'
 
 if __name__ == '__main__':
     # parse_args()
