@@ -225,6 +225,9 @@ def main(args):
         if not sink:
             sys.stderr.write(" Unable to create egl sink \n")
 
+    # sink.set_property('async', False)
+    sink.set_property('sync', False)
+
     streammux.set_property('width', 1920)
     streammux.set_property('height', 1080)
     streammux.set_property('batch-size', 1)
@@ -284,7 +287,7 @@ def parse_args():
     return stream_path
 
 
-stream_path0 = ('rtsp://localhost:%d/ds-test',)
+stream_path0 = ('rtsp://192.168.10.140:8554/ds-test',)
 stream_path1 = ('rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4',)
 
 if __name__ == '__main__':
