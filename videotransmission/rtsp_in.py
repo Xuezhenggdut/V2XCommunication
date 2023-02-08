@@ -228,8 +228,9 @@ def main(args):
     # sink.set_property('async', False)
     sink.set_property('sync', False)
 
-    streammux.set_property('width', 1920)
-    streammux.set_property('height', 1080)
+    streammux.set_property('live-source', True)
+    streammux.set_property('width', 640)
+    streammux.set_property('height', 480)
     streammux.set_property('batch-size', 1)
     streammux.set_property('batched-push-timeout', 4000000)
 
