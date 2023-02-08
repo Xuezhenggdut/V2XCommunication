@@ -225,11 +225,14 @@ def main(args):
     sink.set_property('sync', 1)
 
     print("Playing camera %s " % device_cam)
-    caps_v4l2src.set_property('caps', Gst.Caps.from_string("video/x-raw, framerate=30/1"))
+    caps_v4l2src.set_property('caps', Gst.Caps.from_string("video/x-raw, framerate=25/1"))
     caps_vidconvsrc.set_property('caps', Gst.Caps.from_string("video/x-raw(memory:NVMM)"))
+
     source.set_property('device', device_cam)
-    streammux.set_property('width', 1920)
-    streammux.set_property('height', 1080)
+    # source.set_property('caps', Gst.Caps.from_string("video/x-raw, width=640, height=480, framerate=30/1"))
+
+    streammux.set_property('width', 640)
+    streammux.set_property('height', 480)
     streammux.set_property('batch-size', 1)
     streammux.set_property('batched-push-timeout', 4000000)
 
@@ -345,7 +348,7 @@ def parse_args():
 
 
 codec = 'H264'
-bitrate = 4000000
+bitrate = 1000000
 stream_path = '/opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_720p.h264'
 device_cam = '/dev/video0'
 
