@@ -256,11 +256,6 @@ def main(args):
     pipeline.add(rtppay)
     pipeline.add(sink)
 
-    # Link the elements together:
-    # file-source -> h264-parser -> nvh264-decoder ->
-    # nvinfer -> nvvidconv -> nvosd -> nvvidconv_postosd ->
-    # caps -> encoder -> rtppay -> udpsink
-
     print("Linking elements in the Pipeline \n")
     source.link(caps_v4l2src)
     caps_v4l2src.link(vidconvsrc)
