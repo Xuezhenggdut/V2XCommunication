@@ -114,49 +114,12 @@ def main(args):
         sys.stderr.write(" Unable to create Pipeline \n")
     print("Creating streamux \n ")
 
-    # Create nvstreammux instance to form batches from one or more sources.
-    streammux = Gst.ElementFactory.make("nvstreammux", "Stream-muxer")
-    if not streammux:
-        sys.stderr.write(" Unable to create NvStreamMux \n")
-
-    pipeline.add(streammux)
-    sink = None
-    transform = None
-
     source = Gst.ElementFactory.make("udpsrc", "UDP-source")
+    source.set_property('address', '192.168.62.224')
+    source.set_property('port', 30301)
     pipeline.add(source)
 
-    caps = Gst.ElementFactory.make("capsfilter", "filter")
-    caps.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM)"))
-    pipeline.add(caps)
-    source.link(caps)
-
-    padname = "sink_%u" % 0
-    sinkpad = streammux.get_request_pad(padname)
-    if not sinkpad:
-        sys.stderr.write("Unable to create sink pad bin \n")
-    srcpad = caps.get_static_pad("src")
-    if not srcpad:
-        sys.stderr.write("Unable to create src pad bin \n")
-    srcpad.link(sinkpad)
-
-    # Finally render the osd output
-    if is_aarch64():
-        transform = Gst.ElementFactory.make("nvegltransform", "nvegl-transform")
-
-    print("Creating EGLSink \n")
-    sink = Gst.ElementFactory.make("nveglglessink", "nvvideo-renderer")
-    if not sink:
-        sys.stderr.write(" Unable to create egl sink \n")
-
-    # sink.set_property('async', False)
-    sink.set_property('sync', False)
-
-    streammux.set_property('live-source', True)
-    streammux.set_property('width', 640)
-    streammux.set_property('height', 480)
-    streammux.set_property('batch-size', 1)
-    streammux.set_property('batched-push-timeout', 4000000)
+    source.set_property("caps", Gst.Caps.from_string("application/x-rtp"))
 
     rtpdepay = None
     if codec == "H264":
@@ -168,29 +131,53 @@ def main(args):
     if not rtpdepay:
         sys.stderr.write(" Unable to create rtpdepay")
     pipeline.add(rtpdepay)
-    streammux.link(rtpdepay)
+    source.link(rtpdepay)
 
-    decoder = None
-    if codec == "H264":
-        decoder = Gst.ElementFactory.make("nvv4l2h264dec", "decoder")
-        print("Creating H264 Encoder")
-    elif codec == "H265":
-        decoder = Gst.ElementFactory.make("nvv4l2h265dec", "decoder")
-        print("Creating H265 Encoder")
+    decoder = Gst.ElementFactory.make("nvv4l2decoder", "decoder")
+    print("Creating V4L2 Encoder")
     if not decoder:
         sys.stderr.write(" Unable to create decoder")
     pipeline.add(decoder)
     rtpdepay.link(decoder)
 
+    streammux = Gst.ElementFactory.make("nvstreammux", "Stream-muxer")
+    if not streammux:
+        sys.stderr.write(" Unable to create NvStreamMux \n")
+    pipeline.add(streammux)
+    padname = "sink_%u" % 0
+    sinkpad = streammux.get_request_pad(padname)
+    if not sinkpad:
+        sys.stderr.write("Unable to create sink pad bin \n")
+    srcpad = decoder.get_static_pad("src")
+    if not srcpad:
+        sys.stderr.write("Unable to create src pad bin \n")
+    srcpad.link(sinkpad)
+
+    streammux.set_property('live-source', True)
+    streammux.set_property('width', 640)
+    streammux.set_property('height', 480)
+    streammux.set_property('batch-size', 1)
+    streammux.set_property('batched-push-timeout', 4000000)
+
+    print("Creating EGLSink \n")
+    sink = Gst.ElementFactory.make("nveglglessink", "nvvideo-renderer")
+    if not sink:
+        sys.stderr.write(" Unable to create egl sink \n")
+
+    # sink.set_property('async', False)
+    sink.set_property('sync', False)
     pipeline.add(sink)
+    # Finally render the osd output
+    transform = None
     if is_aarch64():
+        transform = Gst.ElementFactory.make("nvegltransform", "nvegl-transform")
         pipeline.add(transform)
 
     if is_aarch64():
-        decoder.link(transform)
+        streammux.link(transform)
         transform.link(sink)
     else:
-        decoder.link(sink)
+        streammux.link(sink)
 
     # create an event loop and feed gstreamer bus mesages to it
     loop = GLib.MainLoop()
