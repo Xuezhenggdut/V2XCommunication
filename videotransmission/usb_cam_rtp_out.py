@@ -214,13 +214,12 @@ def main(args):
         sys.stderr.write(" Unable to create rtppay")
 
     # Make the UDP sink
-    updsink_port_num = 30299
     sink = Gst.ElementFactory.make("udpsink", "udpsink")
     if not sink:
         sys.stderr.write(" Unable to create udpsink")
 
-    sink.set_property('host', '192.168.62.199')
-    sink.set_property('port', updsink_port_num)
+    sink.set_property('host', udpsink_host)
+    sink.set_property('port', udpsink_port)
     sink.set_property('async', False)
     sink.set_property('sync', 1)
 
@@ -342,7 +341,9 @@ def parse_args():
     return 0
 
 
-codec = 'H264'
+udpsink_host = '192.168.62.199'
+udpsink_port = 30299
+codec = 'H265'
 bitrate = 400000
 stream_path = '/opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_720p.h264'
 device_cam = '/dev/video0'
