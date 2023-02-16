@@ -115,8 +115,8 @@ def main(args):
     print("Creating streamux \n ")
 
     source = Gst.ElementFactory.make("udpsrc", "UDP-source")
-    source.set_property('address', '192.168.62.224')
-    source.set_property('port', 30301)
+    source.set_property('address', udpsrc_address)
+    source.set_property('port', udpsrc_port)
     pipeline.add(source)
 
     source.set_property("caps", Gst.Caps.from_string("application/x-rtp"))
@@ -223,7 +223,9 @@ def parse_args():
     return stream_path
 
 
-codec = 'H264'
+udpsrc_address = '192.168.62.224'
+udpsrc_port = 30301
+codec = 'H265'
 stream_path0 = ('rtsp://192.168.10.140:8554/ds-test',)
 stream_path1 = ('rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4',)
 
