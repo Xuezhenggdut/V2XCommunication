@@ -21,6 +21,7 @@ from udpsocket import *
 from tlvmessage import *
 import socket
 import time
+import traceback
 
 PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
@@ -321,7 +322,7 @@ def loop_to_v2x(arg):
     packet_type = 4
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # sock.settimeout(10)
-    sock.bind(('127.0.0.1', 30300))
+    sock.bind(('192.168.62.223', 30300))
 
     remote_address = ('192.168.62.199', 30299)
     buffer_len = 128  # 最大缓存长度
@@ -357,9 +358,14 @@ def loop_to_v2x(arg):
                     break
             message = packet_type.to_bytes(1, 'big') + packet_num.to_bytes(1, 'big')
             for j in range(packet_num):
-                message = message + send_msg_lengths[index - 1 - j].to_bytes(2, 'big')
+                length = send_msg_lengths[index - 1 - j]
+                message = message + int(length).to_bytes(2, 'big')
             message = message + packets
-            send = sock.sendto(message, remote_address)
+            try:
+                send = sock.sendto(message, remote_address)
+            except Exception as _:
+                traceback.print_exc()
+                sys.exit(0)
             if send == 0:
                 raise RuntimeError("Socket connection broken!")
             send_time = time.time() * 1000  # ms
@@ -370,9 +376,9 @@ def loop_to_v2x(arg):
 
 
 PACKET_MAX_LENGTH = 3963 - 22  # byte
-SEND_PERIOD = 20  # ms
-udpsink_host = '192.168.62.199'
-udpsink_port = 30299
+SEND_PERIOD = 100  # ms
+udpsink_host = '192.168.62.223'
+udpsink_port = 30300
 codec = 'H265'
 bitrate = 400000
 stream_path = '/opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_720p.h264'
