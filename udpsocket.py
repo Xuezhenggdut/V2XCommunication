@@ -9,7 +9,7 @@ class UDPSocket:
     def __init__(self, sock=None):
         if sock is None:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.sock.bind(('192.168.62.224', 30301))
+            self.sock.bind(('192.168.62.224', 30300))
         else:
             self.sock = sock
 
@@ -32,11 +32,11 @@ class UDPSocket:
 
 
 def udpsocket_test():
-    remote_host = '192.168.10.140'
-    remote_port = 30301
+    remote_host = '192.168.62.199'
+    remote_port = 30299
 
     sock = UDPSocket()
-    print(sock.sendto(b'Test', (remote_host, remote_port), True))
+    print(sock.sendto(b'Test', (remote_host, remote_port), False))
     sock.close()
 
 

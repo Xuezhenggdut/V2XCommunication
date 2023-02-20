@@ -150,18 +150,18 @@ def v2x_to_loop(arg):
     thread_name = arg
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # sock.settimeout(10)
-    sock.bind(('192.168.62.199', 30299))
+    sock.bind(('192.168.62.224', 30301))
 
-    remote_address = ('127.0.0.1', 30300)
+    remote_address = ('127.0.0.10', 30300)
     while True:
         message = sock.recv(4096)
-        if message[0:8] == b'\x04':
-            packet_num = int.from_bytes(message[8:16], 'big')
+        if message[0:1] == b'\x04':
+            packet_num = int.from_bytes(message[1:2], 'big')
             packet_lengths = np.array(packet_num)
             rtp_packets = []
-            index = 16 + packet_num * 16
+            index = 2 + packet_num * 2
             for i in range(packet_num):
-                packet_lengths[i] = message[16+i*16: 32+i*16]
+                packet_lengths[i] = int.from_bytes(message[2+i*2: 4+i*2], 'big')
                 rtp_packets.append(message[index: index+packet_lengths[i]])
                 index += packet_lengths[i]
             for _ in range(packet_num):
@@ -170,7 +170,7 @@ def v2x_to_loop(arg):
                     raise RuntimeError("Socket connection broken!")
 
 
-udpsrc_address = '127.0.0.1'
+udpsrc_address = '127.0.0.10'
 udpsrc_port = 30300
 codec = 'H265'
 stream_path0 = ('rtsp://192.168.10.140:8554/ds-test',)
