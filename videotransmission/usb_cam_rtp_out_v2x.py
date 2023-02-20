@@ -311,13 +311,14 @@ def main(args):
 def loop_to_v2x(arg):
     """
     将RTP包打包到一个包中，按周期发送到OBU。
-    ++++++++++++++++++++++++++++++++++++++++++++++++
-    | 8bit | 16bit | 16bit |...| 16bit |  packet ...
-    ++++++++++++++++++++++++++++++++++++++++++++++++
-    第一个byte填写有几个包，后续的2byte填写对应的包的长度
+    +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    | 8bit | 8bit | 16bit | 16bit |...| 16bit |  packet ...
+    +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    第一个byte填写类型，第二个byte填写有几个包，后续的2byte填写对应的包的长度，新包在前旧包在后。
     :return:
     """
     thread_name = arg
+    packet_type = 4
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # sock.settimeout(10)
     sock.bind(('127.0.0.1', 30300))
@@ -354,7 +355,7 @@ def loop_to_v2x(arg):
                 packet_num += 1
                 if packets_len + send_msg_lengths[i - 1] > PACKET_MAX_LENGTH:
                     break
-            message = packet_num.to_bytes(1, 'big')
+            message = packet_type.to_bytes(1, 'big') + packet_num.to_bytes(1, 'big')
             for j in range(packet_num):
                 message = message + send_msg_lengths[index - 1 - j].to_bytes(2, 'big')
             message = message + packets
@@ -368,7 +369,7 @@ def loop_to_v2x(arg):
             send_msg_lengths[:] = 0
 
 
-PACKET_MAX_LENGTH = 3963  # byte
+PACKET_MAX_LENGTH = 3963 - 22  # byte
 SEND_PERIOD = 20  # ms
 udpsink_host = '192.168.62.199'
 udpsink_port = 30299
