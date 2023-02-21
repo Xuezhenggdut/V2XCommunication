@@ -157,7 +157,7 @@ def v2x_to_loop(arg):
         message = sock.recv(4096)
         if message[0:1] == b'\x04':
             packet_num = int.from_bytes(message[1:2], 'big')
-            packet_lengths = np.array(packet_num)
+            packet_lengths = packet_num * [0]
             rtp_packets = []
             index = 2 + packet_num * 2
             for i in range(packet_num):
