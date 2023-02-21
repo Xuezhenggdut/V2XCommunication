@@ -87,11 +87,12 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         # memory will not be claimed by the garbage collector.
         # Reading the display_text field here will return the C address of the
         # allocated string. Use pyds.get_string() to get the string content.
-        py_nvosd_text_params.display_text = "Frame Number={} Number of Objects={} " \
-                                            "Vehicle_count={} Person_count={}".format(frame_number, num_rects,
-                                                                                      obj_counter[
-                                                                                          PGIE_CLASS_ID_VEHICLE],
-                                                                                      obj_counter[PGIE_CLASS_ID_PERSON])
+
+        # py_nvosd_text_params.display_text = "Frame Number={} Number of Objects={} " \
+        #                                     "Vehicle_count={} Person_count={}".format(frame_number, num_rects,
+        #                                                                               obj_counter[
+        #                                                                                   PGIE_CLASS_ID_VEHICLE],
+        #                                                                               obj_counter[PGIE_CLASS_ID_PERSON])
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10
@@ -350,23 +351,27 @@ def loop_to_v2x(arg):
             packets = b''
             packets_len = 0
             packet_num = 0
+            message = b''
             for i in range(index - 1, -1, -1):
-                packets = b'' + send_msg_list[i]
+                packets = packets + send_msg_list[i]
                 packets_len += send_msg_lengths[i]
                 packet_num += 1
-                if packets_len + send_msg_lengths[i - 1] > PACKET_MAX_LENGTH:
+                if i == 0 or (packets_len + send_msg_lengths[i - 1]) > PACKET_MAX_LENGTH:
                     break
             message = packet_type.to_bytes(1, 'big') + packet_num.to_bytes(1, 'big')
             for j in range(packet_num):
                 length = send_msg_lengths[index - 1 - j]
                 message = message + int(length).to_bytes(2, 'big')
             message = message + packets
+            print('message length:{},packet_num:{}\n'.format(len(message), packet_num))
+            # print(send_msg_lengths)
             try:
-                send = sock.sendto(message, remote_address)
+                send_len = sock.sendto(message, remote_address)
+                print('send_len:{},message len:{}'.format(send_len, len(message)))
             except Exception as _:
                 traceback.print_exc()
                 sys.exit(0)
-            if send == 0:
+            if send_len == 0:
                 raise RuntimeError("Socket connection broken!")
             send_time = time.time() * 1000  # ms
             # 清空缓存
@@ -375,12 +380,12 @@ def loop_to_v2x(arg):
             send_msg_lengths[:] = 0
 
 
-PACKET_MAX_LENGTH = 3963 - 22  # byte
+PACKET_MAX_LENGTH = 3000 - 22  # byte
 SEND_PERIOD = 100  # ms
 udpsink_host = '192.168.62.223'
 udpsink_port = 30300
 codec = 'H265'
-bitrate = 400000
+bitrate = 100000
 stream_path = '/opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_720p.h264'
 device_cam = '/dev/video0'
 
