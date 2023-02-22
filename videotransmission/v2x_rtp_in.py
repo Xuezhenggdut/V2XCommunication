@@ -25,6 +25,8 @@ from tlvmessage import *
 import socket
 import _thread
 
+from tlvmessage import *
+
 MAX_DISPLAY_LEN = 64
 PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
@@ -154,7 +156,9 @@ def v2x_to_loop(arg):
 
     remote_address = ('127.0.0.10', 30300)
     while True:
-        message = sock.recv(4096)
+        tlv_data = sock.recv(4096)
+        tlv_msg = TLVMessage(tlv_data, RECEIVE)
+        message = tlv_msg.get_payload()
         if message[0:1] == b'\x04':
             packet_num = int.from_bytes(message[1:2], 'big')
             packet_lengths = packet_num * [0]

@@ -23,6 +23,8 @@ import socket
 import time
 import traceback
 
+from tlvmessage import *
+
 PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
 PGIE_CLASS_ID_PERSON = 2
@@ -363,11 +365,17 @@ def loop_to_v2x(arg):
                 length = send_msg_lengths[index - 1 - j]
                 message = message + int(length).to_bytes(2, 'big')
             message = message + packets
-            print('message length:{},packet_num:{}\n'.format(len(message), packet_num))
+            # print('message length:{},packet_num:{}\n'.format(len(message), packet_num))
             # print(send_msg_lengths)
             try:
-                send_len = sock.sendto(message, remote_address)
-                print('send_len:{},message len:{}'.format(send_len, len(message)))
+                tlv_msg = TLVMessage(message, SEND,
+                                     new_msg=True,
+                                     config=(b'\x00\x00\x00\x70',   # aid
+                                             b'\x00\x00\x00\x0b',   # traffic_period
+                                             b'\x00\x00\x00\x7f',   # priority
+                                             b'\x00\x00\xff\xff'))  # traffic_id
+                send_len = sock.sendto(tlv_msg.get_tlv_raw_message(), remote_address)
+                print('tlv_msg_len:{},message len:{}'.format(len(tlv_msg.get_tlv_raw_message()), len(message)))
             except Exception as _:
                 traceback.print_exc()
                 sys.exit(0)
@@ -380,8 +388,8 @@ def loop_to_v2x(arg):
             send_msg_lengths[:] = 0
 
 
-PACKET_MAX_LENGTH = 3000 - 22  # byte
-SEND_PERIOD = 100  # ms
+PACKET_MAX_LENGTH = 1410  # byte
+SEND_PERIOD = 20  # ms
 udpsink_host = '192.168.62.223'
 udpsink_port = 30300
 codec = 'H265'
