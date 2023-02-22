@@ -312,7 +312,7 @@ def main(args):
     pipeline.set_state(Gst.State.NULL)
 
 
-def loop_to_v2x(arg):
+def loop_to_v2x(tlv_enable=False):
     """
     将RTP包打包到一个包中，按周期发送到OBU。
     +++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -321,7 +321,7 @@ def loop_to_v2x(arg):
     第一个byte填写类型，第二个byte填写有几个包，后续的2byte填写对应的包的长度，新包在前旧包在后。
     :return:
     """
-    thread_name = arg
+    tlv_en = tlv_enable
     packet_type = 4
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # sock.settimeout(10)
@@ -368,14 +368,18 @@ def loop_to_v2x(arg):
             # print('message length:{},packet_num:{}\n'.format(len(message), packet_num))
             # print(send_msg_lengths)
             try:
-                tlv_msg = TLVMessage(message, SEND,
-                                     new_msg=True,
-                                     config=(b'\x00\x00\x00\x70',   # aid
-                                             b'\x00\x00\x00\x0b',   # traffic_period
-                                             b'\x00\x00\x00\x7f',   # priority
-                                             b'\x00\x00\xff\xff'))  # traffic_id
-                send_len = sock.sendto(tlv_msg.get_tlv_raw_message(), remote_address)
-                print('tlv_msg_len:{},message len:{}'.format(len(tlv_msg.get_tlv_raw_message()), len(message)))
+                if tlv_en:
+                    tlv_msg = TLVMessage(message, SEND,
+                                         new_msg=True,
+                                         config=(b'\x00\x00\x00\x70',   # aid
+                                                 b'\x00\x00\x00\x0b',   # traffic_period
+                                                 b'\x00\x00\x00\x7f',   # priority
+                                                 b'\x00\x00\xff\xff'))  # traffic_id
+                    send_len = sock.sendto(tlv_msg.get_tlv_raw_message(), remote_address)
+                    print('tlv_msg_len:{},message len:{}'.format(len(tlv_msg.get_tlv_raw_message()), len(message)))
+                else:
+                    send_len = sock.sendto(message, remote_address)
+                    print('send_len:{},message len:{}'.format(send_len, len(message)))
             except Exception as _:
                 traceback.print_exc()
                 sys.exit(0)
@@ -388,8 +392,8 @@ def loop_to_v2x(arg):
             send_msg_lengths[:] = 0
 
 
-PACKET_MAX_LENGTH = 1410  # byte
-SEND_PERIOD = 20  # ms
+PACKET_MAX_LENGTH = 1450  # byte
+SEND_PERIOD = 100  # ms
 udpsink_host = '192.168.62.223'
 udpsink_port = 30300
 codec = 'H265'
@@ -399,7 +403,7 @@ device_cam = '/dev/video0'
 
 if __name__ == '__main__':
     try:
-        _thread.start_new_thread(loop_to_v2x, ('Thread loop_to_v2x',))
+        _thread.start_new_thread(loop_to_v2x, (False,))
     except _thread.error:
         print("Unable to start thread: loop_to_v2x.")
     sys.exit(main(sys.argv))
