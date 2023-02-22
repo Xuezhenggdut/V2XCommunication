@@ -140,7 +140,7 @@ def main(args):
     pipeline.set_state(Gst.State.NULL)
 
 
-def v2x_to_loop(arg):
+def v2x_to_loop(tlv_enable=False):
     """
     将从OBU接收到的包进行解包，发送到本地回环中。
     +++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -149,16 +149,19 @@ def v2x_to_loop(arg):
     第一个byte表示类型，第二个byte表示有几个包，后续的2byte表示对应的包的长度，新包在前旧包在后。
     :return:
     """
-    thread_name = arg
+    tlv_en = tlv_enable
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # sock.settimeout(10)
     sock.bind(('192.168.62.224', 30301))
 
     remote_address = ('127.0.0.10', 30300)
     while True:
-        tlv_data = sock.recv(4096)
-        tlv_msg = TLVMessage(tlv_data, RECEIVE)
-        message = tlv_msg.get_payload()
+        raw_data = sock.recv(4096)
+        if tlv_en:
+            tlv_msg = TLVMessage(raw_data, RECEIVE)
+            message = tlv_msg.get_payload()
+        else:
+            message = raw_data
         if message[0:1] == b'\x04':
             packet_num = int.from_bytes(message[1:2], 'big')
             packet_lengths = packet_num * [0]
@@ -182,7 +185,7 @@ stream_path1 = ('rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp
 
 if __name__ == '__main__':
     try:
-        _thread.start_new_thread(v2x_to_loop, ('Thread v2x_to_loop',))
+        _thread.start_new_thread(v2x_to_loop, (False,))
     except _thread.error:
         print("Unable to start thread: v2x_to_loop.")
     sys.exit(main(sys.argv))
