@@ -365,8 +365,8 @@ def loop_to_v2x(tlv_enable=False):
                 length = send_msg_lengths[index - 1 - j]
                 message = message + int(length).to_bytes(2, 'big')
             message = message + packets
-            # print('message length:{},packet_num:{}\n'.format(len(message), packet_num))
-            # print(send_msg_lengths)
+            print('message length:{},packet_num:{}\n'.format(len(message), packet_num))
+            print(send_msg_lengths)
             try:
                 if tlv_en:
                     tlv_msg = TLVMessage(message, SEND,
@@ -376,10 +376,10 @@ def loop_to_v2x(tlv_enable=False):
                                                  b'\x00\x00\x00\x7f',   # priority
                                                  b'\x00\x00\xff\xff'))  # traffic_id
                     send_len = sock.sendto(tlv_msg.get_tlv_raw_message(), remote_address)
-                    print('tlv_msg_len:{},message len:{}'.format(len(tlv_msg.get_tlv_raw_message()), len(message)))
+                    # print('tlv_msg_len:{},message len:{}'.format(len(tlv_msg.get_tlv_raw_message()), len(message)))
                 else:
                     send_len = sock.sendto(message, remote_address)
-                    print('send_len:{},message len:{}'.format(send_len, len(message)))
+                    # print('send_len:{},message len:{}'.format(send_len, len(message)))
             except Exception as _:
                 traceback.print_exc()
                 sys.exit(0)
@@ -393,11 +393,11 @@ def loop_to_v2x(tlv_enable=False):
 
 
 PACKET_MAX_LENGTH = 1450  # byte
-SEND_PERIOD = 100  # ms
+SEND_PERIOD = 80  # ms
 udpsink_host = '192.168.62.223'
 udpsink_port = 30300
 codec = 'H265'
-bitrate = 100000
+bitrate = 30000
 stream_path = '/opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_720p.h264'
 device_cam = '/dev/video0'
 
