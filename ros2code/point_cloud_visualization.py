@@ -26,10 +26,11 @@ class PointCloudSubscriber(Node):
 
     def listener_callback(self, msg):
         pcd_as_numpy_array = np.array(list(read_points(msg)))
-        self.vis.remove_geometry(self.open3d_pcd)
+        # self.vis.remove_geometry(self.open3d_pcd)
         self.open3d_pcd = open3d.geometry.PointCloud(
             open3d.utility.Vector3dVector(pcd_as_numpy_array))
 
+        self.vis.clear_geometries()
         self.vis.add_geometry(self.open3d_pcd)
 
         self.vis.poll_events()
@@ -131,7 +132,7 @@ def _get_struct_fmt(is_bigendian, fields, field_names=None):
 
 def main(args=None):
     rclpy.init(args=args)
-    point_cloud_subscriber = PointCloudSubscriber('point_cloud_subscriber')
+    point_cloud_subscriber = PointCloudSubscriber('point_cloud_visualization')
     rclpy.spin(point_cloud_subscriber)
 
     point_cloud_subscriber.destroy_node()

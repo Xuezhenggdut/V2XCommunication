@@ -1,4 +1,4 @@
-import sys
+# import sys
 import os
 
 import rclpy
@@ -25,21 +25,28 @@ class PCDPublisher(Node):
 
     def __init__(self, node_name: str):
         super().__init__(node_name)
-        assert len(sys.argv) > 1, "缺少PCD文件夹"
-        assert os.path.exists(sys.argv[1]), "文件夹不存在：" + sys.argv[1]
-        self.pcd_path = sys.argv[1]
+
+        self.declare_parameter('pcd_path', '/home/thu/Downloads/2021_08_23_21_47_19/225')
+        self.declare_parameter('rate', '5')
 
         self.publisher = self.create_publisher(PointCloud2, 'point_cloud', 100)
-        timer_period = 1/self.rate
+        rate = self.get_parameter('rate').get_parameter_value().integer_value
+        # rate = int(rate_str)
+        timer_period = 1/rate
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.count = 0
 
     def timer_callback(self):
+        pcd_path = self.get_parameter('pcd_path').get_parameter_value().string_value
+        assert os.path.exists(pcd_path), "路径不存在：" + pcd_path
+
         num_str = str(self.frame_num).zfill(6)
-        pcd_file = self.pcd_path + '/' + num_str + '.pcd'
+        pcd_file = pcd_path + '/' + num_str + '.pcd'
         assert os.path.isfile(pcd_file), 'PCD文件不存在：' + pcd_file
         pcd = open3d.io.read_point_cloud(pcd_file)  # 返回open3d.geometry.PointCloud
         self.points = np.asarray(pcd.points)  # 返回numpy.ndarray
+
+        self.get_logger().info('PCD file: ' + pcd_file)
 
         self.header.stamp = self.get_clock().now().to_msg()
 
