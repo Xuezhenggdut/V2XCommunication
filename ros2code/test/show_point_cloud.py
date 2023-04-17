@@ -8,6 +8,12 @@ visualizer.create_window()
 render_opt = visualizer.get_render_option()
 render_opt.point_size = 1
 render_opt.background_color = np.asarray([0, 0, 0])
+# render_opt.show_coordinate_frame = True
+
+crt = visualizer.get_view_control()
+# crt.set_lookat(np.array([0, 0, 0]))
+# crt.set_up((0, -1, 0))
+# crt.set_front((-1, 0, 0))
 
 pcd = open3d.io.read_point_cloud('/home/thu/Downloads/2021_08_23_21_47_19/225/000069.pcd',
                                  print_progress=False)
@@ -23,7 +29,10 @@ for i in range(70):
                                          print_progress=False)
     visualizer.clear_geometries()
     visualizer.add_geometry(pcd)
+    crt.set_front((-1, -1, 1))
+    crt.set_up((0, 0, 1))
+    crt.set_zoom(0.2)
     visualizer.poll_events()
     visualizer.update_renderer()
-visualizer.destroy_window()
-
+# visualizer.destroy_window()
+visualizer.run()

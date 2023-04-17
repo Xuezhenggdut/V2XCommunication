@@ -12,6 +12,10 @@ class PointCloudSubscriber(Node):
         super().__init__(node_name)
         self.vis = open3d.visualization.Visualizer()
         self.vis.create_window()
+
+        self.crt = self.vis.get_view_control()
+        # self.crt.set_lookat(np.array([0, 0, 55]))
+
         render_opt = self.vis.get_render_option()
         render_opt.point_size = 1
         render_opt.background_color = np.asarray([0, 0, 0])
@@ -32,6 +36,10 @@ class PointCloudSubscriber(Node):
 
         self.vis.clear_geometries()
         self.vis.add_geometry(self.open3d_pcd)
+
+        self.crt.set_up((0, 0, 1))  # 设置垂直指向屏幕外的向量
+        self.crt.set_front((-1, -1, 1))  # 设置垂直指向屏幕上方的向量
+        self.crt.set_zoom(0.2)  # 设置视角放大比例
 
         self.vis.poll_events()
         self.vis.update_renderer()
