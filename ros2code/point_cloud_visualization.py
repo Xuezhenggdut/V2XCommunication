@@ -11,7 +11,7 @@ class PointCloudSubscriber(Node):
     def __init__(self, node_name: str):
         super().__init__(node_name)
         self.vis = open3d.visualization.Visualizer()
-        self.vis.create_window()
+        self.vis.create_window(window_name='Point cloud')
 
         self.crt = self.vis.get_view_control()
         # self.crt.set_lookat(np.array([0, 0, 55]))
@@ -32,7 +32,7 @@ class PointCloudSubscriber(Node):
         pcd_as_numpy_array = np.array(list(read_points(msg)))
         # self.vis.remove_geometry(self.open3d_pcd)
         self.open3d_pcd = open3d.geometry.PointCloud(
-            open3d.utility.Vector3dVector(pcd_as_numpy_array))
+            open3d.utility.Vector3dVector(pcd_as_numpy_array[:, 0:3]))  # pcd_as_numpy_array第4列包含强度
 
         self.vis.clear_geometries()
         self.vis.add_geometry(self.open3d_pcd)

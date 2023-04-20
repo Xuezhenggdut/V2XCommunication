@@ -21,7 +21,6 @@ class PCDPublisher(Node):
 
     header = Header()
     header.frame_id = 'LiDAR'
-    points = None
 
     def __init__(self, node_name: str):
         super().__init__(node_name)
@@ -44,13 +43,14 @@ class PCDPublisher(Node):
         pcd_file = pcd_path + '/' + num_str + '.pcd'
         assert os.path.isfile(pcd_file), 'PCD文件不存在：' + pcd_file
         pcd = open3d.io.read_point_cloud(pcd_file)  # 返回open3d.geometry.PointCloud
-        self.points = np.asarray(pcd.points)  # 返回numpy.ndarray
+        points = np.asarray(pcd.points)  # 返回numpy.ndarray
+        point_intensity = np.asarray(pcd.colors)[:, 0:1]
 
-        self.get_logger().info('PCD file: ' + pcd_file)
+        # self.get_logger().info('PCD file: ' + pcd_file)
 
         self.header.stamp = self.get_clock().now().to_msg()
 
-        pc = create_cloud(self.header, self.points)  # 返回PointCloud2
+        pc = create_cloud(self.header, points, point_intensity)  # 返回PointCloud2
         self.publisher.publish(pc)
 
         if self.frame_num+2 > self.FRAME_END_NUM:
@@ -60,11 +60,12 @@ class PCDPublisher(Node):
         self.count += 1
 
 
-def create_cloud(header, points: np.ndarray):
+def create_cloud(header, points: np.ndarray, point_intensity: np.ndarray = None):
     """ Creates a point cloud message.
     Args:
         header: PointCloud2 header
         points: Nx3 array of xyz positions.
+        point_intensity: point intensity 只有一列的矩阵
     Returns:
         sensor_msgs/PointCloud2 message
     Code source:
@@ -81,13 +82,21 @@ def create_cloud(header, points: np.ndarray):
     dtype = np.float32
     itemsize = np.dtype(dtype).itemsize  # A 32-bit float takes 4 bytes.
 
-    data = points.astype(dtype).tobytes()
-
     # The fields specify what the bytes represents. The first 4 bytes
     # represents the x-coordinate, the next 4 the y-coordinate, etc.
-    fields = [PointField(
-        name=n, offset=i*itemsize, datatype=ros_dtype, count=1)
-        for i, n in enumerate('xyz')]
+    if point_intensity is not None:
+        data = np.concatenate((points, point_intensity), axis=1)
+        data = data.astype(dtype).tobytes()
+        fields = [PointField(
+            name=n, offset=i * itemsize, datatype=ros_dtype, count=1)
+            for i, n in enumerate(['x', 'y', 'z', 'intensity'])]
+        enum = 4
+    else:
+        data = points.astype(dtype).tobytes()
+        fields = [PointField(
+            name=n, offset=i * itemsize, datatype=ros_dtype, count=1)
+            for i, n in enumerate('xyz')]
+        enum = 3
 
     return PointCloud2(
         header=header,
@@ -96,8 +105,8 @@ def create_cloud(header, points: np.ndarray):
         is_dense=False,
         is_bigendian=False,
         fields=fields,
-        point_step=(itemsize * 3),  # Every point consists of three float32s.
-        row_step=(itemsize * 3 * points.shape[0]),
+        point_step=(itemsize * enum),  # Every point consists of three float32s.
+        row_step=(itemsize * enum * points.shape[0]),
         data=data
     )
 
