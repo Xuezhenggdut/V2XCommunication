@@ -29,9 +29,12 @@ for i in range(70):
                                          print_progress=False)
     visualizer.clear_geometries()
     visualizer.add_geometry(pcd)
-    crt.set_front((-1, -1, 1))
-    crt.set_up((0, 0, 1))
-    crt.set_zoom(0.2)
+    # crt.set_front((-1, -1, 1))  # 斜视角
+    # crt.set_up((0, 0, 1))
+    # crt.set_zoom(0.2)
+    crt.set_up((1, 0, 1))  # 设置垂直指向屏幕上方的向量
+    crt.set_front((-1, 0, 1))  # 设置垂直指向屏幕外的向量
+    crt.set_zoom(0.2)  # 设置视角放大比例
     visualizer.poll_events()
     visualizer.update_renderer()
 # visualizer.destroy_window()

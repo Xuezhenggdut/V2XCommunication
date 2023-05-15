@@ -10,6 +10,7 @@ from std_msgs.msg import Header
 
 import numpy as np
 import open3d
+import yaml, math
 
 
 class PCDPublisher(Node):
@@ -41,8 +42,38 @@ class PCDPublisher(Node):
 
         num_str = str(self.frame_num).zfill(6)
         pcd_file = pcd_path + '/' + num_str + '.pcd'
+        yaml_file = pcd_path + '/' + num_str + '.yaml'
         assert os.path.isfile(pcd_file), 'PCD文件不存在：' + pcd_file
+        assert os.path.isfile(yaml_file), 'YAML配置文件不存在：' + yaml_file
         pcd = open3d.io.read_point_cloud(pcd_file)  # 返回open3d.geometry.PointCloud
+        right_hand = np.array([[1, 0, 0],
+                               [0, -1, 0],
+                               [0, 0, 1]])
+        pcd.rotate(right_hand, center=[0, 0, 0])  # 旋转点云到右手坐标系，y轴取反
+
+        with open(yaml_file, 'r', encoding='utf-8') as f:
+            result = yaml.load(f.read(), Loader=yaml.FullLoader)
+            f.close()
+        lidar_pose = result['lidar_pose']  # x y z roll yaw pitch，雷达（即ego车辆）在地图坐标系中的位置和姿态
+        lidar_rotation = np.array([-lidar_pose[3], lidar_pose[5], -lidar_pose[4]])  # roll, pitch, yaw
+        lidar_rotation = (lidar_rotation / 180) * np.pi
+        lidar_rotate_matrix = euler_angle_2_rotation_matrix(-lidar_rotation)  # 点云旋转矩阵
+
+        # 裁剪点云数据
+        vol = open3d.visualization.SelectionPolygonVolume()
+        vol.orthogonal_axis = 'z'
+        vol.axis_max = 1
+        vol.axis_min = -3
+        bounding_ploy = np.array([[140.8, 140.8, 0],  # x-axis和y-axis区域
+                                  [140.8, -140.8, 0],
+                                  [-140.8, -140.8, 0],
+                                  [-140.8, 140.8, 0]])
+        bounding_ploy_pcd = open3d.geometry.PointCloud()
+        bounding_ploy_pcd.points = open3d.utility.Vector3dVector(bounding_ploy)
+        bounding_ploy_pcd.rotate(lidar_rotate_matrix, center=[0, 0, 0])
+        vol.bounding_polygon = bounding_ploy_pcd.points
+        pcd = vol.crop_point_cloud(pcd)
+
         points = np.asarray(pcd.points)  # 返回numpy.ndarray
         point_intensity = np.asarray(pcd.colors)[:, 0:1]
 
@@ -109,6 +140,24 @@ def create_cloud(header, points: np.ndarray, point_intensity: np.ndarray = None)
         row_step=(itemsize * enum * points.shape[0]),
         data=data
     )
+
+
+def euler_angle_2_rotation_matrix(theta):
+    """
+    欧拉角转旋转矩阵
+    :param theta: roll, pitch, yaw 弧度单位
+    :return:
+    """
+    r_x = np.array([[1, 0, 0],
+                    [0, math.cos(theta[0]), -math.sin(theta[0])],
+                    [0, math.sin(theta[0]), math.cos(theta[0])]])
+    r_y = np.array([[math.cos(theta[1]), 0, math.sin(theta[1])],
+                    [0, 1, 0],
+                    [-math.sin(theta[1]), 0, math.cos(theta[1])]])
+    r_z = np.array([[math.cos(theta[2]), -math.sin(theta[2]), 0],
+                    [math.sin(theta[2]), math.cos(theta[2]), 0],
+                    [0, 0, 1]])
+    return np.dot(r_z, np.dot(r_y, r_x))
 
 
 def main(args=None):

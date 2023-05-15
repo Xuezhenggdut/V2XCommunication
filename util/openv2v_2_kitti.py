@@ -120,7 +120,7 @@ def show_open2v2_3d_bbox(pcd_file_name='/home/thu/Downloads/2021_08_23_21_47_19/
     visualizer.run()
 
 
-def show_open2v2_3d_bbox_v2(pcd_file_name='/home/thu/Downloads/2021_08_23_21_47_19/234/000069'):
+def show_open2v2_3d_bbox_v2(pcd_file_name='/home/thu/Downloads/2021_08_23_21_47_19/243/000069'):
     """
     根据对应的配置文件，在点云中绘制识别车辆的3D边界框。将点云数据和地图坐标转换到右手坐标系。
     所有坐标，y轴取反，其它轴保持不变。所有姿态，翻滚roll=-roll，倾斜pitch=pitch，偏航yaw=-yaw。
@@ -254,7 +254,6 @@ def pcd2bin(pcd_dir_path: str, bin_dir_path: str, txt_dir_path: str, output_num:
                            [0, 0, 1]])
     pcd.rotate(right_hand, center=[0, 0, 0])  # 旋转点云到右手坐标系，y轴取反
 
-    # 把点云移动到地图坐标系中
     with open(yaml_file, 'r', encoding='utf-8') as f:
         result = yaml.load(f.read(), Loader=yaml.FullLoader)
         f.close()
@@ -323,12 +322,12 @@ def pcd2bin(pcd_dir_path: str, bin_dir_path: str, txt_dir_path: str, output_num:
             center_point = (obj_location - lidar_location +
                             np.array([center_list[0], -center_list[1], center_list[2]]))
             # 坐标向量反方向旋转，旋转角度是雷达的yaw
-            box_rotate_matrix = euler_angle_2_rotation_matrix(-np.array([0, 0, (lidar_rotation[2] / 180 * np.pi)]))
+            box_rotate_matrix = euler_angle_2_rotation_matrix(-np.array([0, 0, lidar_rotation[2]]))
             center_point = np.dot(box_rotate_matrix, center_point)
             f.write(f'{center_point[0]:.2f}' + ' ' + f'{center_point[1]:.2f}' + ' ' + f'{center_point[2]:.2f}' + ' ')
 
             # obj在的方位yaw
-            yaw = -angle_list[1] / 180 * np.pi
+            yaw = -(angle_list[1] + ego_rotation[2]) / 180 * np.pi
             f.write(f'{yaw:.2f}')
             f.write('\n')
         f.close()
@@ -380,7 +379,66 @@ def openv2v_2_kitti(openv2v_dir_path: str, kitti_dir_path: str, output_num: int 
         pcd2bin(openv2v_dir_path, bin_dir_path, txt_dir_path, output_num=output_num, frame_num=frame_num)
 
 
+def t_kitti(bin_file: str, txt_file: str):
+    assert os.path.isfile(bin_file), 'bin文件不存在：' + bin_file
+    assert os.path.isfile(txt_file), 'txt文件不存在：' + txt_file
+
+    visualizer = open3d.visualization.Visualizer()
+    visualizer.create_window()
+    render_opt = visualizer.get_render_option()
+    render_opt.point_size = 1
+    render_opt.background_color = np.asarray([1, 1, 1])
+
+    # with np.fromfile(bin_file, dtype=np.float32) as pcd_array:
+    pcd_array = np.fromfile(bin_file, dtype=np.float32)
+    pcd_array = pcd_array.reshape(-1, 4)
+    pcd = open3d.geometry.PointCloud()
+    pcd.points = open3d.utility.Vector3dVector(pcd_array[:, 0:3])
+    visualizer.add_geometry(pcd)
+
+    # cars_str = []
+    with open(txt_file, encoding='utf-8') as f:
+        for line in f:
+            # cars_str.append((line.split()))
+            car = line.split()
+
+            # 半长、半宽、半高
+            half_l, half_w, half_h = float(car[10])/2, float(car[9])/2, float(car[8])/2,
+            # 中心位于地图坐标原点的框的顶点
+            a_points = np.array([[-half_l, -half_w, -half_h], [-half_l, -half_w, half_h],
+                                 [-half_l, half_w, half_h], [-half_l, half_w, -half_h],
+                                 [half_l, -half_w, -half_h], [half_l, -half_w, half_h],
+                                 [half_l, half_w, half_h], [half_l, half_w, -half_h]])
+            # 框的中心点，点云坐标系
+            center_point = (np.array([float(car[11]), float(car[12]), float(car[13])]))
+            # print(center_point)
+
+            angle = np.array([0, 0, float(car[14])])  # roll, pitch, yaw,转换到右手坐标系
+            rotate_matrix = euler_angle_2_rotation_matrix(angle)  # 旋转矩阵
+
+            points_obj = a_points + center_point  # 平移整个框
+
+            # 框顶点之间的连接线
+            box_lines = np.array([[0, 1], [1, 2], [2, 3], [3, 0],
+                                  [4, 5], [5, 6], [6, 7], [7, 4],
+                                  [0, 4], [1, 5], [2, 6], [3, 7]])
+            # 线的颜色
+            colors = np.array([[0, 1, 0] for k in range(12)])
+            line_set = open3d.geometry.LineSet()
+            line_set.lines = open3d.utility.Vector2iVector(box_lines)
+            line_set.colors = open3d.utility.Vector3dVector(colors)
+            line_set.points = open3d.utility.Vector3dVector(points_obj)
+            line_set.rotate(rotate_matrix, center=center_point)  # 以框的中心为旋转中心，旋转边界框
+            visualizer.add_geometry(line_set)
+
+    visualizer.run()
+
+
 if __name__ == '__main__':
-    openv2v_2_kitti('/home/thu/Downloads/2021_08_23_21_47_19/225',
-                    '/home/thu/Downloads/openv2v_2_kitti/train')
-    # show_open2v2_3d_bbox_v2()
+    # openv2v_2_kitti('/home/thu/Downloads/2021_08_23_21_47_19/225',
+    #                 '/home/thu/Downloads/openv2v_2_kitti/train',
+    #                 output_num=0)
+    # show_open2v2_3d_bbox_v2(pcd_file_name='/home/thu/Downloads/2021_08_23_21_47_19/243/000131')
+    t_kitti('/home/thu/Downloads/openv2v_2_kitti/train/lidar/0000000151.bin',
+            '/home/thu/Downloads/openv2v_2_kitti/train/label/0000000151.txt')
+

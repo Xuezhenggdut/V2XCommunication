@@ -37,8 +37,8 @@ class PointCloudSubscriber(Node):
         self.vis.clear_geometries()
         self.vis.add_geometry(self.open3d_pcd)
 
-        self.crt.set_up((0, 0, 1))  # 设置垂直指向屏幕外的向量
-        self.crt.set_front((-1, -1, 1))  # 设置垂直指向屏幕上方的向量
+        self.crt.set_up((1, 0, 1))  # 设置垂直指向屏幕上方的向量
+        self.crt.set_front((-1, 0, 1))  # 设置垂直指向屏幕外的向量
         self.crt.set_zoom(0.2)  # 设置视角放大比例
 
         self.vis.poll_events()
@@ -51,7 +51,6 @@ import sys
 import math
 import struct
 # from sensor_msgs.msg import PointCloud2, PointField
-
 
 
 _DATATYPES = {}

@@ -17,7 +17,8 @@ def generate_launch_description():
         "rate", default_value=TextSubstitution(text='5')
     )
     engine_file_launch_arg = DeclareLaunchArgument(
-        "engine_path", default_value=TextSubstitution(text='/home/thu/Downloads/PointPillarNet/trt.fp16.engine')
+        "engine_path", default_value=TextSubstitution(text='/home/thu/Downloads/PointPillarNet/'
+                                                           'checkpoint_epoch_80_test.engine')
     )
 
     return LaunchDescription([
