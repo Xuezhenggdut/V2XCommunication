@@ -11,7 +11,7 @@ import numpy as np
 import os
 
 
-def show_open2v2_3d_bbox(pcd_file_name='/home/thu/Downloads/2021_08_23_21_47_19/243/000069'):
+def show_openv2v_3d_bbox(pcd_file_name='/home/thu/Downloads/2021_08_23_21_47_19/243/000069'):
     """
     根据对应的配置文件，在点云中绘制识别车辆的3D边界框
     :param: 路径和帧名
@@ -120,7 +120,7 @@ def show_open2v2_3d_bbox(pcd_file_name='/home/thu/Downloads/2021_08_23_21_47_19/
     visualizer.run()
 
 
-def show_open2v2_3d_bbox_v2(pcd_file_name='/home/thu/Downloads/2021_08_23_21_47_19/243/000069'):
+def show_openv2v_3d_bbox_v2(pcd_file_name='/home/thu/Downloads/2021_08_23_21_47_19/243/000069'):
     """
     根据对应的配置文件，在点云中绘制识别车辆的3D边界框。将点云数据和地图坐标转换到右手坐标系。
     所有坐标，y轴取反，其它轴保持不变。所有姿态，翻滚roll=-roll，倾斜pitch=pitch，偏航yaw=-yaw。
@@ -438,7 +438,7 @@ if __name__ == '__main__':
     # openv2v_2_kitti('/home/thu/Downloads/2021_08_23_21_47_19/225',
     #                 '/home/thu/Downloads/openv2v_2_kitti/train',
     #                 output_num=0)
-    # show_open2v2_3d_bbox_v2(pcd_file_name='/home/thu/Downloads/2021_08_23_21_47_19/243/000131')
+    # show_openv2v_3d_bbox_v2(pcd_file_name='/home/thu/Downloads/2021_08_23_21_47_19/243/000131')
     t_kitti('/home/thu/Downloads/openv2v_2_kitti/train/lidar/0000000151.bin',
             '/home/thu/Downloads/openv2v_2_kitti/train/label/0000000151.txt')
 
